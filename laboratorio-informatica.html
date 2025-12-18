@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratório de Informática Virtual - A-Frame</title>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', Arial, sans-serif;
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .controls-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 100;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .lab-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 100, 200, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 100;
+            font-weight: bold;
+        }
+        
+        .light-control {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(50, 50, 50, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 13px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        🖥️ Carregando Laboratório de Informática...
+    </div>
+    
+    <div class="light-control">
+        <strong>💡 Controle de Luzes:</strong><br>
+        • L: Luzes ON/OFF<br>
+        • 1: Luz Normal<br>
+        • 2: Luz Amarela<br>
+        • 3: Luz Azul<br>
+        • 4: Modo Apresentação
+    </div>
+    
+    <div class="lab-info">
+        🏫 <strong>LAB. INFORMÁTICA</strong><br>
+        🖥️ 20 Estações<br>
+        📽️ Projetor + Telão<br>
+        💡 Controle de Luzes<br>
+        ✅ Sistema Ativo
+    </div>
+    
+    <div class="controls-panel">
+        <strong>🎮 Controles de Navegação:</strong><br>
+        • WASD: mover pelo lab<br>
+        • Q/Z: subir/descer câmera<br>
+        • Mouse: olhar ao redor<br>
+        • Clique: interagir<br>
+        • R: resetar posição<br>
+        • F: tela cheia<br><br>
+        
+        <strong>🖥️ Interações:</strong><br>
+        • P: ligar/desligar projetor<br>
+        • T: trocar slides no telão<br>
+        • C: ligar computadores<br>
+        • ESC: menu principal
+    </div>
+
+    <a-scene 
+        background="color: #f0f5ff" 
+        fog="type: linear; color: #f0f5ff; near: 60; far: 120"
+        loading-screen="enabled: false"
+        shadow="type: pcf; autoUpdate: true;">
+        
+        <!-- Assets -->
+        <a-assets>
+            <a-mixin id="computer-station" 
+                     geometry="primitive: box" 
+                     material="color: #2c3e50; roughness: 0.8"></a-mixin>
+            <a-mixin id="computer-screen" 
+                     geometry="primitive: box" 
+                     material="color: #1a1a1a; roughness: 0.1"></a-mixin>
+            <a-mixin id="wall-texture" 
+                     material="color: #f8f9fa; roughness: 0.9"></a-mixin>
+            <a-mixin id="floor-texture" 
+                     material="color: #34495e; roughness: 0.7; metalness: 0.1"></a-mixin>
+            
+            <!-- Mixins para teclado e mouse -->
+            <a-mixin id="keyboard-base" 
+                     geometry="primitive: box; width: 0.45; height: 0.03; depth: 0.18" 
+                     material="color: #2c3e50; roughness: 0.6"></a-mixin>
+            <a-mixin id="keyboard-key" 
+                     geometry="primitive: box; width: 0.02; height: 0.01; depth: 0.02" 
+                     material="color: #34495e; roughness: 0.4"></a-mixin>
+            <a-mixin id="mouse-body" 
+                     geometry="primitive: box; width: 0.06; height: 0.03; depth: 0.1" 
+                     material="color: #1a1a1a; roughness: 0.3"></a-mixin>
+        </a-assets>
+
+        <!-- Câmera Principal -->
+        <a-entity id="cameraRig" position="0 3.2 18" rotation="0 0 0">
+            <a-camera 
+                look-controls="pointerLockEnabled: false" 
+                wasd-controls="enabled: true; fly: true; acceleration: 100"
+                position="0 0 0">
+                
+                <a-cursor 
+                    color="#3498db"
+                    raycaster="objects: .interactive"
+                    animation__click="property: scale; startEvents: click; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 200; direction: alternate; loop: 2">
+                </a-cursor>
+            </a-camera>
+        </a-entity>
+
+        <!-- ESTRUTURA DO LABORATÓRIO -->
+        
+        <!-- Piso Principal -->
+        <a-plane 
+            position="0 0 0" 
+            rotation="-90 0 0" 
+            width="35" 
+            height="40" 
+            mixin="floor-texture"
+            shadow="receive: true">
+        </a-plane>
+        
+        <!-- Detalhes do piso (linhas divisórias) -->
+        <a-plane position="0 0.01 0" rotation="-90 0 0" width="35" height="0.1" color="#2c3e50"></a-plane>
+        <a-plane position="0 0.01 7" rotation="-90 0 0" width="35" height="0.1" color="#2c3e50"></a-plane>
+        <a-plane position="0 0.01 -7" rotation="-90 0 0" width="35" height="0.1" color="#2c3e50"></a-plane>
+        <a-plane position="0 0.01 14" rotation="-90 0 0" width="35" height="0.1" color="#2c3e50"></a-plane>
+        
+        <!-- Linhas transversais do piso -->
+        <a-plane position="-12 0.01 0" rotation="-90 0 90" width="40" height="0.08" color="#2c3e50"></a-plane>
+        <a-plane position="0 0.01 0" rotation="-90 0 90" width="40" height="0.08" color="#2c3e50"></a-plane>
+        <a-plane position="12 0.01 0" rotation="-90 0 90" width="40" height="0.08" color="#2c3e50"></a-plane>
+
+        <!-- Paredes -->
+        <!-- Parede Frontal (com telão) -->
+        <a-plane 
+            mixin="wall-texture"
+            position="0 3.5 -20" 
+            width="35" 
+            height="7" 
+            shadow="receive: true">
+        </a-plane>
+
+        <!-- Parede Traseira -->
+        <a-plane 
+            mixin="wall-texture"
+            position="0 3.5 20" 
+            rotation="0 180 0"
+            width="35" 
+            height="7" 
+            shadow="receive: true">
+        </a-plane>
+
+        <!-- Parede Esquerda -->
+        <a-plane 
+            mixin="wall-texture"
+            position="-17.5 3.5 0" 
+            rotation="0 90 0"
+            width="40" 
+            height="7" 
+            shadow="receive: true">
+        </a-plane>
+
+        <!-- Parede Direita -->
+        <a-plane 
+            mixin="wall-texture"
+            position="17.5 3.5 0" 
+            rotation="0 -90 0"
+            width="40" 
+            height="7" 
+            shadow="receive: true">
+        </a-plane>
+
+        <!-- Teto -->
+        <a-plane 
+            position="0 7 0" 
+            rotation="90 0 0" 
+            width="35" 
+            height="40" 
+            color="#f1f3f4" 
+            material="roughness: 0.8; metalness: 0.05"
+            shadow="receive: true">
+        </a-plane>
+        
+        <!-- Detalhes do teto (placas de gesso) -->
+        <a-plane position="0 6.99 -10" rotation="90 0 0" width="35" height="0.08" color="#e9ecef"></a-plane>
+        <a-plane position="0 6.99 0" rotation="90 0 0" width="35" height="0.08" color="#e9ecef"></a-plane>
+        <a-plane position="0 6.99 10" rotation="90 0 0" width="35" height="0.08" color="#e9ecef"></a-plane>
+        <a-plane position="-12 6.99 0" rotation="90 0 90" width="40" height="0.08" color="#e9ecef"></a-plane>
+        <a-plane position="0 6.99 0" rotation="90 0 90" width="40" height="0.08" color="#e9ecef"></a-plane>
+        <a-plane position="12 6.99 0" rotation="90 0 90" width="40" height="0.08" color="#e9ecef"></a-plane>
+
+        <!-- QUADROS E PINTURAS TECNOLÓGICAS -->
+        
+        <!-- PAREDE ESQUERDA - Quadros de Tecnologia -->
+        
+        <!-- Quadro 1: Steve Jobs -->
+        <!-- Moldura externa dourada -->
+        <a-box position="-17.35 4.5 -10" rotation="0 90 0" width="3.2" height="3.6" depth="0.08" color="#d4af37" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="-17.32 4.5 -10" rotation="0 90 0" width="3.0" height="3.4" depth="0.06" color="#1a1a1a" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="-17.3 4.5 -10" rotation="0 90 0" width="2.8" height="3.2" color="#ffffff" material="roughness: 0.2"></a-plane>
+        <!-- Imagem/Ícone -->
+        <a-plane position="-17.28 5.4 -10" rotation="0 90 0" width="0.8" height="0.8" color="#e74c3c" material="roughness: 0.1"></a-plane>
+        <a-text position="-17.26 5.4 -10" rotation="0 90 0" value="🍎" align="center" width="8" color="#ffffff"></a-text>
+        <!-- Texto principal -->
+        <a-text position="-17.26 4.8 -10" rotation="0 90 0" value="STEVE JOBS" align="center" width="4" color="#2c3e50" font="roboto"></a-text>
+        <a-text position="-17.26 4.3 -10" rotation="0 90 0" value="Innovation distinguishes\nbetween a leader\nand a follower" align="center" width="3" color="#34495e" font="roboto" wrap-count="20"></a-text>
+        <a-text position="-17.26 3.7 -10" rotation="0 90 0" value="1955-2011\nApple Inc." align="center" width="2.5" color="#7f8c8d" font="roboto"></a-text>
+        
+        <!-- Quadro 2: Alan Turing -->
+        <!-- Moldura externa prata -->
+        <a-box position="-17.35 4.5 -3" rotation="0 90 0" width="3.2" height="3.8" depth="0.08" color="#c0c0c0" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="-17.32 4.5 -3" rotation="0 90 0" width="3.0" height="3.6" depth="0.06" color="#2c3e50" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="-17.3 4.5 -3" rotation="0 90 0" width="2.8" height="3.4" color="#f8f9fa" material="roughness: 0.2"></a-plane>
+        <!-- Imagem/Ícone -->
+        <a-plane position="-17.28 5.5 -3" rotation="0 90 0" width="0.8" height="0.8" color="#3498db" material="roughness: 0.1"></a-plane>
+        <a-text position="-17.26 5.5 -3" rotation="0 90 0" value="⚙️" align="center" width="8" color="#ffffff"></a-text>
+        <!-- Texto principal -->
+        <a-text position="-17.26 4.9 -3" rotation="0 90 0" value="ALAN TURING" align="center" width="4" color="#2c3e50" font="roboto"></a-text>
+        <a-text position="-17.26 4.3 -3" rotation="0 90 0" value="We can only see a short\ndistance ahead, but we\ncan see plenty there\nthat needs to be done" align="center" width="3" color="#34495e" font="roboto" wrap-count="18"></a-text>
+        <a-text position="-17.26 3.6 -3" rotation="0 90 0" value="1912-1954\nPai da Computação" align="center" width="2.5" color="#7f8c8d" font="roboto"></a-text>
+        
+        <!-- Quadro 3: Ada Lovelace -->
+        <!-- Moldura externa bronze -->
+        <a-box position="-17.35 4.5 4" rotation="0 90 0" width="3.2" height="3.6" depth="0.08" color="#cd7f32" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="-17.32 4.5 4" rotation="0 90 0" width="3.0" height="3.4" depth="0.06" color="#8e44ad" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="-17.3 4.5 4" rotation="0 90 0" width="2.8" height="3.2" color="#fdf6e3" material="roughness: 0.2"></a-plane>
+        <!-- Imagem/Ícone -->
+        <a-plane position="-17.28 5.4 4" rotation="0 90 0" width="0.8" height="0.8" color="#9b59b6" material="roughness: 0.1"></a-plane>
+        <a-text position="-17.26 5.4 4" rotation="0 90 0" value="👩‍💻" align="center" width="8" color="#ffffff"></a-text>
+        <!-- Texto principal -->
+        <a-text position="-17.26 4.8 4" rotation="0 90 0" value="ADA LOVELACE" align="center" width="4" color="#2c3e50" font="roboto"></a-text>
+        <a-text position="-17.26 4.3 4" rotation="0 90 0" value="The Analytical Engine\nmight act upon other\nthings besides number" align="center" width="3" color="#34495e" font="roboto" wrap-count="18"></a-text>
+        <a-text position="-17.26 3.7 4" rotation="0 90 0" value="1815-1852\nPrimeira Programadora" align="center" width="2.5" color="#7f8c8d" font="roboto"></a-text>
+        
+        <!-- Quadro 4: Timeline da Computação -->
+        <!-- Moldura externa moderna -->
+        <a-box position="-17.35 4.5 11" rotation="0 90 0" width="4.2" height="2.6" depth="0.08" color="#2c3e50" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="-17.32 4.5 11" rotation="0 90 0" width="4.0" height="2.4" depth="0.06" color="#34495e" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="-17.3 4.5 11" rotation="0 90 0" width="3.8" height="2.2" color="#ecf0f1" material="roughness: 0.1"></a-plane>
+        <!-- Título com fundo -->
+        <a-plane position="-17.28 5.2 11" rotation="0 90 0" width="3.6" height="0.4" color="#3498db" material="roughness: 0.1"></a-plane>
+        <a-text position="-17.26 5.2 11" rotation="0 90 0" value="EVOLUÇÃO DA COMPUTAÇÃO" align="center" width="6" color="#ffffff" font="roboto"></a-text>
+        <!-- Timeline -->
+        <a-text position="-17.26 4.8 11" rotation="0 90 0" value="1940s: ENIAC" align="center" width="4" color="#e74c3c" font="roboto"></a-text>
+        <a-text position="-17.26 4.5 11" rotation="0 90 0" value="1970s: Microprocessadores" align="center" width="4" color="#f39c12" font="roboto"></a-text>
+        <a-text position="-17.26 4.2 11" rotation="0 90 0" value="1980s: PCs • 1990s: Internet" align="center" width="4" color="#27ae60" font="roboto"></a-text>
+        <a-text position="-17.26 3.9 11" rotation="0 90 0" value="2000s: Mobile • 2010s: Cloud" align="center" width="4" color="#9b59b6" font="roboto"></a-text>
+        <a-text position="-17.26 3.6 11" rotation="0 90 0" value="2020s: AI & Machine Learning" align="center" width="4" color="#8e44ad" font="roboto"></a-text>
+        
+        <!-- PAREDE DIREITA - Quadros de Linguagens e Tecnologias -->
+        
+        <!-- Quadro 5: Python -->
+        <!-- Moldura externa azul Python -->
+        <a-box position="17.35 4.5 -10" rotation="0 -90 0" width="3.2" height="3.6" depth="0.08" color="#306998" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="17.32 4.5 -10" rotation="0 -90 0" width="3.0" height="3.4" depth="0.06" color="#ffd43b" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="17.3 4.5 -10" rotation="0 -90 0" width="2.8" height="3.2" color="#ffffff" material="roughness: 0.2"></a-plane>
+        <!-- Logo Python -->
+        <a-plane position="17.28 5.4 -10" rotation="0 -90 0" width="0.8" height="0.8" color="#306998" material="roughness: 0.1"></a-plane>
+        <a-text position="17.26 5.4 -10" rotation="0 -90 0" value="🐍" align="center" width="8" color="#ffd43b"></a-text>
+        <!-- Texto principal -->
+        <a-text position="17.26 4.8 -10" rotation="0 -90 0" value="PYTHON" align="center" width="4" color="#306998" font="roboto"></a-text>
+        <a-text position="17.26 4.3 -10" rotation="0 -90 0" value="Simple is better\nthan complex" align="center" width="3" color="#34495e" font="roboto" wrap-count="16"></a-text>
+        <a-text position="17.26 3.7 -10" rotation="0 -90 0" value="Guido van Rossum\n1991" align="center" width="2.5" color="#7f8c8d" font="roboto"></a-text>
+        
+        <!-- Quadro 6: JavaScript -->
+        <!-- Moldura externa amarela JS -->
+        <a-box position="17.35 4.5 -3" rotation="0 -90 0" width="3.2" height="3.6" depth="0.08" color="#f7df1e" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="17.32 4.5 -3" rotation="0 -90 0" width="3.0" height="3.4" depth="0.06" color="#2c3e50" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="17.3 4.5 -3" rotation="0 -90 0" width="2.8" height="3.2" color="#2c3e50" material="roughness: 0.2"></a-plane>
+        <!-- Logo JS -->
+        <a-plane position="17.28 5.4 -3" rotation="0 -90 0" width="0.8" height="0.8" color="#f7df1e" material="roughness: 0.1"></a-plane>
+        <a-text position="17.26 5.4 -3" rotation="0 -90 0" value="JS" align="center" width="8" color="#2c3e50" font="roboto"></a-text>
+        <!-- Texto principal -->
+        <a-text position="17.26 4.8 -3" rotation="0 -90 0" value="JAVASCRIPT" align="center" width="4" color="#f7df1e" font="roboto"></a-text>
+        <a-text position="17.26 4.3 -3" rotation="0 -90 0" value="The language\nof the web" align="center" width="3" color="#ecf0f1" font="roboto" wrap-count="15"></a-text>
+        <a-text position="17.26 3.7 -3" rotation="0 -90 0" value="Brendan Eich\n1995" align="center" width="2.5" color="#bdc3c7" font="roboto"></a-text>
+        
+        <!-- Quadro 7: HTML/CSS -->
+        <!-- Moldura externa laranja HTML -->
+        <a-box position="17.35 4.5 4" rotation="0 -90 0" width="3.2" height="3.8" depth="0.08" color="#e34c26" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="17.32 4.5 4" rotation="0 -90 0" width="3.0" height="3.6" depth="0.06" color="#1572b6" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="17.3 4.5 4" rotation="0 -90 0" width="2.8" height="3.4" color="#ffffff" material="roughness: 0.2"></a-plane>
+        <!-- Símbolos HTML/CSS -->
+        <a-plane position="17.28 5.5 4" rotation="0 -90 0" width="1.4" height="0.6" color="#e34c26" material="roughness: 0.1"></a-plane>
+        <a-text position="17.26 5.5 4" rotation="0 -90 0" value="< / >" align="center" width="8" color="#ffffff" font="roboto"></a-text>
+        <a-plane position="17.28 5.0 4" rotation="0 -90 0" width="1.4" height="0.4" color="#1572b6" material="roughness: 0.1"></a-plane>
+        <a-text position="17.26 5.0 4" rotation="0 -90 0" value="{ CSS }" align="center" width="8" color="#ffffff" font="roboto"></a-text>
+        <!-- Texto principal -->
+        <a-text position="17.26 4.5 4" rotation="0 -90 0" value="HTML & CSS" align="center" width="4" color="#e34c26" font="roboto"></a-text>
+        <a-text position="17.26 4.0 4" rotation="0 -90 0" value="The foundation\nof the web" align="center" width="3" color="#34495e" font="roboto" wrap-count="15"></a-text>
+        <a-text position="17.26 3.5 4" rotation="0 -90 0" value="Tim Berners-Lee\n1990" align="center" width="2.5" color="#7f8c8d" font="roboto"></a-text>
+        
+        <!-- Quadro 8: Algoritmos -->
+        <!-- Moldura externa roxa -->
+        <a-box position="17.35 4.5 11" rotation="0 -90 0" width="4.2" height="2.6" depth="0.08" color="#8e44ad" shadow="cast: true" class="interactive"></a-box>
+        <!-- Moldura interna -->
+        <a-box position="17.32 4.5 11" rotation="0 -90 0" width="4.0" height="2.4" depth="0.06" color="#9b59b6" shadow="cast: true"></a-box>
+        <!-- Fundo do quadro -->
+        <a-plane position="17.3 4.5 11" rotation="0 -90 0" width="3.8" height="2.2" color="#f8f9fa" material="roughness: 0.1"></a-plane>
+        <!-- Título com fundo -->
+        <a-plane position="17.28 5.2 11" rotation="0 -90 0" width="3.6" height="0.4" color="#8e44ad" material="roughness: 0.1"></a-plane>
+        <a-text position="17.26 5.2 11" rotation="0 -90 0" value="ESTRUTURAS & ALGORITMOS" align="center" width="6" color="#ffffff" font="roboto"></a-text>
+        <!-- Conteúdo -->
+        <a-text position="17.26 4.8 11" rotation="0 -90 0" value="Arrays • Linked Lists" align="center" width="4" color="#e74c3c" font="roboto"></a-text>
+        <a-text position="17.26 4.5 11" rotation="0 -90 0" value="Trees • Graphs • Hash Tables" align="center" width="4" color="#f39c12" font="roboto"></a-text>
+        <a-text position="17.26 4.2 11" rotation="0 -90 0" value="Stacks • Queues" align="center" width="4" color="#27ae60" font="roboto"></a-text>
+        <a-text position="17.26 3.9 11" rotation="0 -90 0" value="Sorting • Searching" align="center" width="4" color="#9b59b6" font="roboto"></a-text>
+        <a-text position="17.26 3.6 11" rotation="0 -90 0" value="Dynamic Programming" align="center" width="4" color="#8e44ad" font="roboto"></a-text>
+        
+        <!-- Poster Motivacional Esquerdo -->
+        <!-- Moldura moderna -->
+        <a-box position="-17.35 2.5 -15" rotation="0 90 0" width="2.6" height="2.0" depth="0.08" color="#e74c3c" shadow="cast: true" class="interactive"></a-box>
+        <a-box position="-17.32 2.5 -15" rotation="0 90 0" width="2.4" height="1.8" depth="0.06" color="#c0392b" shadow="cast: true"></a-box>
+        <!-- Fundo gradiente -->
+        <a-plane position="-17.3 2.5 -15" rotation="0 90 0" width="2.2" height="1.6" color="#2c3e50" material="roughness: 0.1"></a-plane>
+        <!-- Ícone -->
+        <a-plane position="-17.28 2.9 -15" rotation="0 90 0" width="0.6" height="0.6" color="#e74c3c" material="roughness: 0.1"></a-plane>
+        <a-text position="-17.26 2.9 -15" rotation="0 90 0" value="💻" align="center" width="8" color="#ffffff"></a-text>
+        <!-- Texto principal -->
+        <a-text position="-17.26 2.5 -15" rotation="0 90 0" value="CÓDIGO CRIA" align="center" width="4" color="#e74c3c" font="roboto"></a-text>
+        <a-text position="-17.26 2.2 -15" rotation="0 90 0" value="O FUTURO" align="center" width="4" color="#e74c3c" font="roboto"></a-text>
+        <a-text position="-17.26 1.8 -15" rotation="0 90 0" value="Every expert was\nonce a beginner" align="center" width="3" color="#ecf0f1" font="roboto" wrap-count="16"></a-text>
+        
+        <!-- Poster Motivacional Direito -->
+        <!-- Moldura moderna -->
+        <a-box position="17.35 2.5 -15" rotation="0 -90 0" width="2.6" height="2.0" depth="0.08" color="#27ae60" shadow="cast: true" class="interactive"></a-box>
+        <a-box position="17.32 2.5 -15" rotation="0 -90 0" width="2.4" height="1.8" depth="0.06" color="#229954" shadow="cast: true"></a-box>
+        <!-- Fundo gradiente -->
+        <a-plane position="17.3 2.5 -15" rotation="0 -90 0" width="2.2" height="1.6" color="#2c3e50" material="roughness: 0.1"></a-plane>
+        <!-- Ícone -->
+        <a-plane position="17.28 2.9 -15" rotation="0 -90 0" width="0.6" height="0.6" color="#27ae60" material="roughness: 0.1"></a-plane>
+        <a-text position="17.26 2.9 -15" rotation="0 -90 0" value="🚀" align="center" width="8" color="#ffffff"></a-text>
+        <!-- Texto principal -->
+        <a-text position="17.26 2.5 -15" rotation="0 -90 0" value="INNOVATE" align="center" width="4" color="#27ae60" font="roboto"></a-text>
+        <a-text position="17.26 2.2 -15" rotation="0 -90 0" value="CREATE • INSPIRE" align="center" width="4" color="#27ae60" font="roboto"></a-text>
+        <a-text position="17.26 1.8 -15" rotation="0 -90 0" value="Think Different" align="center" width="3" color="#ecf0f1" font="roboto"></a-text>
+
+        <!-- TELÃO E PROJETOR -->
+        
+        <!-- Base do Telão -->
+        <a-box 
+            position="0 3.5 -19.8" 
+            width="12" 
+            height="7" 
+            depth="0.2" 
+            color="#2c3e50"
+            shadow="cast: true">
+        </a-box>
+
+        <!-- Tela do Telão -->
+        <a-plane 
+            id="mainScreen"
+            position="0 3.5 -19.7" 
+            width="11" 
+            height="6" 
+            color="#000000"
+            material="opacity: 0.9"
+            shadow="cast: true"
+            class="interactive">
+            
+            <!-- Conteúdo da Tela -->
+            <a-text 
+                id="screenContent"
+                value="🖥️ LABORATÓRIO DE INFORMÁTICA\n\nSistema Operacional: Ubuntu Linux\n\n20 Estações Disponíveis\n\nDesenvolvimento Web\nProgramação Python\nBanco de Dados\n\nPressione 'P' para controlar o projetor" 
+                position="0 0 0.01" 
+                align="center" 
+                width="8" 
+                color="#00ff00"
+                wrap-count="40">
+            </a-text>
+        </a-plane>
+
+        <!-- Projetor no Teto -->
+        <a-box 
+            id="projector"
+            position="0 6.5 -8" 
+            width="0.8" 
+            height="0.4" 
+            depth="1.2" 
+            color="#34495e"
+            shadow="cast: true"
+            class="interactive">
+        </a-box>
+        
+        <!-- Lente do Projetor -->
+        <a-cylinder 
+            position="0 6.5 -7.4" 
+            radius="0.15" 
+            height="0.1" 
+            color="#3498db"
+            material="metalness: 0.8; roughness: 0.2">
+        </a-cylinder>
+        
+        <!-- Suporte do Projetor -->
+        <a-cylinder 
+            position="0 6.8 -8" 
+            radius="0.1" 
+            height="0.6" 
+            color="#2c3e50">
+        </a-cylinder>
+
+        <!-- ESTAÇÕES DE COMPUTADOR (20 ESTAÇÕES) -->
+        
+        <!-- FILEIRA 1 (5 estações) -->
+        <!-- Estação 1 -->
+        <a-box position="-8 1.0 -8" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 1 -->
+        <a-box position="-9.1 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-9.1 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-8 1.7 -8.4" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-1" position="-8 1.7 -8.3" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 1 -->
+        <!-- Teclado -->
+        <a-box mixin="keyboard-base" position="-8 1.07 -7.6" shadow="cast: true"></a-box>
+        <!-- Teclas do teclado (simuladas) -->
+        <a-box mixin="keyboard-key" position="-8.15 1.095 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-8.1 1.095 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-8.05 1.095 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-8 1.095 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-7.95 1.095 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-7.9 1.095 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-7.85 1.095 -7.6" shadow="cast: true"></a-box>
+        <!-- Segunda fileira de teclas -->
+        <a-box mixin="keyboard-key" position="-8.15 1.095 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-8.1 1.095 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-8.05 1.095 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-8 1.095 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-7.95 1.095 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-7.9 1.095 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-7.85 1.095 -7.65" shadow="cast: true"></a-box>
+        <!-- Barra de espaço -->
+        <a-box geometry="primitive: box; width: 0.2; height: 0.01; depth: 0.03" material="color: #34495e; roughness: 0.4" position="-8 1.095 -7.7" shadow="cast: true"></a-box>
+        
+        <!-- Mouse -->
+        <a-box mixin="mouse-body" position="-7.6 1.07 -7.5" shadow="cast: true"></a-box>
+        <!-- Botões do mouse -->
+        <a-box geometry="primitive: box; width: 0.025; height: 0.005; depth: 0.04" material="color: #2c3e50; roughness: 0.4" position="-7.615 1.085 -7.48" shadow="cast: true"></a-box>
+        <a-box geometry="primitive: box; width: 0.025; height: 0.005; depth: 0.04" material="color: #2c3e50; roughness: 0.4" position="-7.585 1.085 -7.48" shadow="cast: true"></a-box>
+        <!-- Scroll wheel -->
+        <a-cylinder geometry="radius: 0.005; height: 0.01" material="color: #1a1a1a; roughness: 0.2" position="-7.6 1.09 -7.49" shadow="cast: true"></a-cylinder>
+
+        <!-- Estação 2 -->
+        <a-box position="-4 1.0 -8" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 2 -->
+        <a-box position="-5.1 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-5.1 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-4 1.7 -8.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-2" position="-4 1.7 -8.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 2 -->
+        <!-- Teclado -->
+        <a-box mixin="keyboard-base" position="-4 1.07 -7.6" shadow="cast: true"></a-box>
+        <!-- Teclas do teclado (simuladas) -->
+        <a-box mixin="keyboard-key" position="-4.15 0.895 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-4.1 0.895 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-4.05 0.895 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-4 0.895 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-3.95 0.895 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-3.9 0.895 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-3.85 0.895 -7.6" shadow="cast: true"></a-box>
+        <!-- Segunda fileira de teclas -->
+        <a-box mixin="keyboard-key" position="-4.15 0.895 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-4.1 0.895 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-4.05 0.895 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-4 0.895 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-3.95 0.895 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-3.9 0.895 -7.65" shadow="cast: true"></a-box>
+        <a-box mixin="keyboard-key" position="-3.85 0.895 -7.65" shadow="cast: true"></a-box>
+        <!-- Barra de espaço -->
+        <a-box geometry="primitive: box; width: 0.2; height: 0.01; depth: 0.03" material="color: #34495e; roughness: 0.4" position="-4 0.895 -7.7" shadow="cast: true"></a-box>
+        
+        <!-- Mouse -->
+        <a-box mixin="mouse-body" position="-3.6 1.07 -7.5" shadow="cast: true"></a-box>
+        <!-- Botões do mouse -->
+        <a-box geometry="primitive: box; width: 0.025; height: 0.005; depth: 0.04" material="color: #2c3e50; roughness: 0.4" position="-3.615 0.885 -7.48" shadow="cast: true"></a-box>
+        <a-box geometry="primitive: box; width: 0.025; height: 0.005; depth: 0.04" material="color: #2c3e50; roughness: 0.4" position="-3.585 0.885 -7.48" shadow="cast: true"></a-box>
+        <!-- Scroll wheel -->
+        <a-cylinder geometry="radius: 0.005; height: 0.01" material="color: #1a1a1a; roughness: 0.2" position="-3.6 0.89 -7.49" shadow="cast: true"></a-cylinder>
+
+        <!-- Estação 3 -->
+        <a-box position="0 1.0 -8" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 3 -->
+        <a-box position="-1.1 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-1.1 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="0 1.7 -8.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-3" position="0 1.7 -8.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 3 -->
+        <a-box mixin="keyboard-base" position="0 1.07 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="0.4 1.07 -7.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 4 -->
+        <a-box position="4 1.0 -8" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 4 -->
+        <a-box position="2.9 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="2.9 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="4 1.7 -8.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-4" position="4 1.7 -8.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 4 -->
+        <a-box mixin="keyboard-base" position="4 1.07 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="4.4 1.07 -7.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 5 -->
+        <a-box position="8 1.0 -8" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 5 -->
+        <a-box position="6.9 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 -8.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="6.9 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 -7.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="8 1.7 -8.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-5" position="8 1.7 -8.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 5 -->
+        <a-box mixin="keyboard-base" position="8 1.07 -7.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="8.4 1.07 -7.5" shadow="cast: true"></a-box>
+
+        <!-- FILEIRA 2 (5 estações) -->
+        <!-- Estação 6 -->
+        <a-box position="-8 1.0 -4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 6 -->
+        <a-box position="-9.1 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-9.1 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-8 1.7 -4.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-6" position="-8 1.7 -4.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 6 -->
+        <a-box mixin="keyboard-base" position="-8 1.07 -3.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="-7.6 1.07 -3.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 7 -->
+        <a-box position="-4 1.0 -4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 7 -->
+        <a-box position="-5.1 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-5.1 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-4 1.7 -4.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-7" position="-4 1.7 -4.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 7 -->
+        <a-box mixin="keyboard-base" position="-4 1.07 -3.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="-3.6 1.07 -3.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 8 -->
+        <a-box position="0 1.0 -4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 8 -->
+        <a-box position="-1.1 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-1.1 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="0 1.7 -4.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-8" position="0 1.7 -4.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 8 -->
+        <a-box mixin="keyboard-base" position="0 1.07 -3.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="0.4 1.07 -3.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 9 -->
+        <a-box position="4 1.0 -4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 9 -->
+        <a-box position="2.9 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="2.9 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="4 1.7 -4.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-9" position="4 1.7 -4.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 9 -->
+        <a-box mixin="keyboard-base" position="4 1.07 -3.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="4.4 1.07 -3.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 10 -->
+        <a-box position="8 1.0 -4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 10 -->
+        <a-box position="6.9 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 -4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="6.9 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 -3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="8 1.7 -4.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-10" position="8 1.7 -4.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 10 -->
+        <a-box mixin="keyboard-base" position="8 1.07 -3.6" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="8.4 1.07 -3.5" shadow="cast: true"></a-box>
+
+        <!-- FILEIRA 3 (5 estações) -->
+        <!-- Estação 11 -->
+        <a-box position="-8 1.0 0" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 11 -->
+        <a-box position="-9.1 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-9.1 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-8 1.7 -0.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-11" position="-8 1.7 -0.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 11 -->
+        <a-box mixin="keyboard-base" position="-8 1.07 0.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="-7.6 1.07 0.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 12 -->
+        <a-box position="-4 1.0 0" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 12 -->
+        <a-box position="-5.1 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-5.1 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-4 1.7 -0.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-12" position="-4 1.7 -0.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 12 -->
+        <a-box mixin="keyboard-base" position="-4 1.07 0.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="-3.6 1.07 0.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 13 -->
+        <a-box position="0 1.0 0" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 13 -->
+        <a-box position="-1.1 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-1.1 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="0 1.7 -0.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-13" position="0 1.7 -0.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 13 -->
+        <a-box mixin="keyboard-base" position="0 1.07 0.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="0.4 1.07 0.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 14 -->
+        <a-box position="4 1.0 0" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 14 -->
+        <a-box position="2.9 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="2.9 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="4 1.7 -0.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-14" position="4 1.7 -0.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 14 -->
+        <a-box mixin="keyboard-base" position="4 1.07 0.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="4.4 1.07 0.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 15 -->
+        <a-box position="8 1.0 0" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 15 -->
+        <a-box position="6.9 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 -0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="6.9 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 0.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="8 1.7 -0.7" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-15" position="8 1.7 -0.6" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 15 -->
+        <a-box mixin="keyboard-base" position="8 1.07 0.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="8.4 1.07 0.5" shadow="cast: true"></a-box>
+
+        <!-- FILEIRA 4 (5 estações) -->
+        <!-- Estação 16 -->
+        <a-box position="-8 1.0 4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 16 -->
+        <a-box position="-9.1 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-9.1 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-6.9 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-8 1.7 3.3" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-16" position="-8 1.7 3.4" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 16 -->
+        <a-box mixin="keyboard-base" position="-8 1.07 4.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="-7.6 1.07 4.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 17 -->
+        <a-box position="-4 1.0 4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 17 -->
+        <a-box position="-5.1 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-5.1 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-2.9 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-4 1.7 3.3" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-17" position="-4 1.7 3.4" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 17 -->
+        <a-box mixin="keyboard-base" position="-4 1.07 4.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="-3.6 1.07 4.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 18 -->
+        <a-box position="0 1.0 4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 18 -->
+        <a-box position="-1.1 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="-1.1 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="1.1 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="0 1.7 3.3" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-18" position="0 1.7 3.4" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 18 -->
+        <a-box mixin="keyboard-base" position="0 1.07 4.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="0.4 1.07 4.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 19 -->
+        <a-box position="4 1.0 4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 19 -->
+        <a-box position="2.9 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="2.9 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="5.1 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="4 1.7 3.3" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-19" position="4 1.7 3.4" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 19 -->
+        <a-box mixin="keyboard-base" position="4 1.07 4.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="4.4 1.07 4.5" shadow="cast: true"></a-box>
+
+        <!-- Estação 20 -->
+        <a-box position="8 1.0 4" width="2.5" height="0.1" depth="1.2" color="#34495e" shadow="cast: true" class="interactive computer-desk"></a-box>
+        <!-- Pernas da mesa 20 -->
+        <a-box position="6.9 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 3.4" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="6.9 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="9.1 0.5 4.6" width="0.1" height="1.0" depth="0.1" color="#2c3e50" shadow="cast: true"></a-box>
+        <a-box position="8 1.7 3.3" width="1.8" height="1.2" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box id="screen-20" position="8 1.7 3.4" width="1.6" height="1" depth="0.05" color="#0066cc" class="interactive computer-screen"></a-box>
+        <!-- Teclado e Mouse da Estação 20 -->
+        <a-box mixin="keyboard-base" position="8 1.07 4.4" shadow="cast: true"></a-box>
+        <a-box mixin="mouse-body" position="8.4 1.07 4.5" shadow="cast: true"></a-box>
+
+        <!-- MESA DO PROFESSOR -->
+        <a-box 
+            position="0 0.9 12" 
+            width="4" 
+            height="0.15" 
+            depth="2" 
+            color="#8b4513"
+            shadow="cast: true"
+            class="interactive">
+        </a-box>
+        
+        <!-- Pernas da mesa do professor -->
+        <a-box position="-1.8 0.45 11.2" width="0.12" height="0.9" depth="0.12" color="#654321" shadow="cast: true"></a-box>
+        <a-box position="1.8 0.45 11.2" width="0.12" height="0.9" depth="0.12" color="#654321" shadow="cast: true"></a-box>
+        <a-box position="-1.8 0.45 12.8" width="0.12" height="0.9" depth="0.12" color="#654321" shadow="cast: true"></a-box>
+        <a-box position="1.8 0.45 12.8" width="0.12" height="0.9" depth="0.12" color="#654321" shadow="cast: true"></a-box>
+        
+        <!-- Computador do Professor -->
+        <a-box position="0 1.6 11.3" width="2.2" height="1.4" depth="0.1" color="#1a1a1a" shadow="cast: true"></a-box>
+        <a-box position="0 1.6 11.35" width="2" height="1.2" depth="0.05" color="#0d7377" class="interactive"></a-box>
+
+        <!-- SISTEMA DE ILUMINAÇÃO AVANÇADO -->
+        
+        <!-- Luz Ambiente -->
+        <a-light 
+            id="ambientLight"
+            type="ambient" 
+            intensity="0.4" 
+            color="#ffffff">
+        </a-light>
+        
+        <!-- Luz Principal -->
+        <a-light 
+            id="mainLight"
+            type="directional" 
+            position="0 15 5" 
+            intensity="1.0" 
+            color="#ffffff"
+            shadow="cast: true; mapSize: 4096">
+        </a-light>
+        
+        <!-- Luzes do Teto (9 pontos - distribuição ampliada) -->
+        <a-light 
+            id="ceilingLight1"
+            type="point" 
+            position="-10 6.5 -10" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight2"
+            type="point" 
+            position="0 6.5 -10" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight3"
+            type="point" 
+            position="10 6.5 -10" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight4"
+            type="point" 
+            position="-10 6.5 0" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight5"
+            type="point" 
+            position="0 6.5 0" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight6"
+            type="point" 
+            position="10 6.5 0" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+
+        <a-light 
+            id="ceilingLight7"
+            type="point" 
+            position="-10 6.5 10" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight8"
+            type="point" 
+            position="0 6.5 10" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+        
+        <a-light 
+            id="ceilingLight9"
+            type="point" 
+            position="10 6.5 10" 
+            intensity="0.8" 
+            color="#f8f8ff"
+            shadow="cast: true"
+            class="ceiling-light">
+        </a-light>
+
+        <!-- Sky -->
+        <a-sky color="#f0f5ff"></a-sky>
+
+    </a-scene>
+
+    <script>
+        // Estado do sistema
+        let projectorOn = true;
+        let currentSlide = 1;
+        let lightsOn = true;
+        let currentLightMode = 'normal';
+        let computersOn = false;
+
+        // Slides para o telão
+        const slides = [
+            "🖥️ LABORATÓRIO DE INFORMÁTICA\n\nSistema Operacional: Ubuntu Linux\n\n20 Estações Disponíveis\n\nDesenvolvimento Web\nProgramação Python\nBanco de Dados\n\nPressione 'P' para controlar o projetor",
+            "📚 CURSOS DISPONÍVEIS\n\n• Programação Web (HTML, CSS, JS)\n• Python para Iniciantes\n• Banco de Dados MySQL\n• Design Gráfico\n• Redes de Computadores\n• Segurança Digital\n\nPressione 'T' para próximo slide",
+            "🔧 FERRAMENTAS INSTALADAS\n\n• Visual Studio Code\n• PyCharm Community\n• GIMP\n• LibreOffice\n• Chrome/Firefox\n• MySQL Workbench\n• Git/GitHub Desktop\n\nTodas as estações atualizadas!",
+            "📋 NORMAS DO LABORATÓRIO\n\n• Não consumir alimentos\n• Manter silêncio\n• Salvar trabalhos na nuvem\n• Relatar problemas técnicos\n• Desligar computadores ao sair\n\nBom trabalho a todos!"
+        ];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const scene = document.querySelector('a-scene');
+            const loadingScreen = document.getElementById('loadingScreen');
+            
+            // Esconder tela de loading
+            scene.addEventListener('loaded', function() {
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 1500);
+            });
+
+            // Interações com objetos clicáveis
+            setupInteractions();
+            
+            // Controles de teclado
+            setupKeyboardControls();
+            
+            console.log('🖥️ Laboratório de Informática carregado!');
+            console.log('📽️ Projetor: LIGADO | 💡 Luzes: LIGADO | 🖥️ Computadores: DESLIGADO');
+        });
+
+        function setupInteractions() {
+            const interactiveObjects = document.querySelectorAll('.interactive');
+            
+            interactiveObjects.forEach((obj, index) => {
+                obj.addEventListener('click', function() {
+                    if (this.classList.contains('computer-screen')) {
+                        toggleComputerScreen(this);
+                    } else if (this.id === 'mainScreen') {
+                        nextSlide();
+                    } else if (this.id === 'projector') {
+                        toggleProjector();
+                    }
+                    
+                    // Efeito visual no clique
+                    this.setAttribute('animation__click', {
+                        property: 'scale',
+                        from: '1 1 1',
+                        to: '1.05 1.05 1.05',
+                        dur: 200,
+                        direction: 'alternate',
+                        loop: 2
+                    });
+                });
+
+                obj.addEventListener('mouseenter', function() {
+                    this.setAttribute('animation__hover', {
+                        property: 'scale',
+                        to: '1.02 1.02 1.02',
+                        dur: 100
+                    });
+                });
+
+                obj.addEventListener('mouseleave', function() {
+                    this.setAttribute('animation__hover', {
+                        property: 'scale',
+                        to: '1 1 1',
+                        dur: 100
+                    });
+                });
+            });
+        }
+
+        function setupKeyboardControls() {
+            document.addEventListener('keydown', function(event) {
+                const camera = document.getElementById('cameraRig');
+                
+                switch(event.code) {
+                    case 'KeyR':
+                        camera.setAttribute('position', '0 3.2 18');
+                        camera.setAttribute('rotation', '0 0 0');
+                        console.log('🎯 Câmera resetada - virada para o laboratório');
+                        break;
+                        
+                    case 'KeyQ':
+                        adjustCameraHeight(0.5);
+                        break;
+                        
+                    case 'KeyZ':
+                        adjustCameraHeight(-0.5);
+                        break;
+                        
+                    case 'KeyF':
+                        toggleFullscreen();
+                        break;
+                        
+                    case 'KeyP':
+                        toggleProjector();
+                        break;
+                        
+                    case 'KeyT':
+                        nextSlide();
+                        break;
+                        
+                    case 'KeyC':
+                        toggleAllComputers();
+                        break;
+                        
+                    case 'KeyL':
+                        toggleLights();
+                        break;
+                        
+                    case 'Digit1':
+                        setLightingMode('normal');
+                        break;
+                        
+                    case 'Digit2':
+                        setLightingMode('yellow');
+                        break;
+                        
+                    case 'Digit3':
+                        setLightingMode('blue');
+                        break;
+                        
+                    case 'Digit4':
+                        setLightingMode('presentation');
+                        break;
+                }
+            });
+        }
+
+        function toggleProjector() {
+            const screen = document.getElementById('mainScreen');
+            const projector = document.getElementById('projector');
+            let projectorLight = document.getElementById('projectorLight');
+            
+            projectorOn = !projectorOn;
+            
+            if (projectorOn) {
+                // Tela ligada - tom azul escuro mais brilhante
+                screen.setAttribute('color', '#1a1a2e');
+                screen.setAttribute('material', {
+                    opacity: 1.0,
+                    emissive: '#0066cc',
+                    emissiveIntensity: 0.1,
+                    roughness: 0.1,
+                    metalness: 0.2
+                });
+                projector.setAttribute('color', '#34495e');
+                
+                // Criar luz do projetor se não existir
+                if (!projectorLight) {
+                    projectorLight = document.createElement('a-light');
+                    projectorLight.setAttribute('id', 'projectorLight');
+                    projectorLight.setAttribute('type', 'spot');
+                    projectorLight.setAttribute('position', '0 4.5 -10');
+                    projectorLight.setAttribute('target', '#mainScreen');
+                    projectorLight.setAttribute('color', '#87ceeb');
+                    projectorLight.setAttribute('intensity', 0.8);
+                    projectorLight.setAttribute('angle', 20);
+                    projectorLight.setAttribute('penumbra', 0.3);
+                    document.querySelector('a-scene').appendChild(projectorLight);
+                } else {
+                    projectorLight.setAttribute('intensity', 0.8);
+                    projectorLight.setAttribute('color', '#87ceeb');
+                }
+                
+                console.log('📽️ Projetor LIGADO - Tela com brilho sutil');
+            } else {
+                // Tela desligada - mais escura
+                screen.setAttribute('color', '#2c3e50');
+                screen.setAttribute('material', {
+                    opacity: 0.3,
+                    emissive: '#000000',
+                    emissiveIntensity: 0,
+                    roughness: 0.8,
+                    metalness: 0
+                });
+                projector.setAttribute('color', '#7f8c8d');
+                
+                // Desligar luz do projetor
+                if (projectorLight) {
+                    projectorLight.setAttribute('intensity', 0);
+                }
+                
+                console.log('📽️ Projetor DESLIGADO');
+            }
+        }
+
+        function nextSlide() {
+            if (!projectorOn) return;
+            
+            currentSlide = (currentSlide % slides.length) + 1;
+            const screenContent = document.getElementById('screenContent');
+            screenContent.setAttribute('value', slides[currentSlide - 1]);
+            
+            console.log(`📊 Slide ${currentSlide}/${slides.length}`);
+        }
+
+        function toggleAllComputers() {
+            computersOn = !computersOn;
+            const screens = document.querySelectorAll('.computer-screen');
+            
+            screens.forEach(screen => {
+                if (computersOn) {
+                    screen.setAttribute('color', '#00ff00');
+                } else {
+                    screen.setAttribute('color', '#0066cc');
+                }
+            });
+            
+            console.log(`🖥️ Computadores: ${computersOn ? 'LIGADOS' : 'DESLIGADOS'}`);
+        }
+
+        function toggleComputerScreen(screen) {
+            const currentColor = screen.getAttribute('color');
+            const newColor = currentColor === '#0066cc' ? '#00ff00' : '#0066cc';
+            screen.setAttribute('color', newColor);
+            
+            const isOn = newColor === '#00ff00';
+            console.log(`💻 ${screen.id}: ${isOn ? 'LIGADO' : 'DESLIGADO'}`);
+        }
+
+        function toggleLights() {
+            lightsOn = !lightsOn;
+            
+            if (lightsOn) {
+                setLightingMode(currentLightMode);
+            } else {
+                setLightingMode('off');
+            }
+        }
+
+        function setLightingMode(mode) {
+            const ambientLight = document.getElementById('ambientLight');
+            const mainLight = document.getElementById('mainLight');
+            const ceilingLights = document.querySelectorAll('.ceiling-light');
+            const scene = document.querySelector('a-scene');
+            
+            if (mode !== 'off') {
+                currentLightMode = mode;
+                lightsOn = true;
+            }
+            
+            switch(mode) {
+                case 'normal':
+                    ambientLight.setAttribute('light', {intensity: 0.4, color: '#ffffff'});
+                    mainLight.setAttribute('light', {intensity: 1.0, color: '#ffffff'});
+                    ceilingLights.forEach(light => {
+                        light.setAttribute('light', {intensity: 0.8, color: '#f8f8ff'});
+                    });
+                    scene.setAttribute('background', 'color', '#f0f5ff');
+                    console.log('💡 Luz NORMAL ativada');
+                    break;
+                    
+                case 'yellow':
+                    ambientLight.setAttribute('light', {intensity: 0.3, color: '#fff8dc'});
+                    mainLight.setAttribute('light', {intensity: 0.8, color: '#ffd700'});
+                    ceilingLights.forEach(light => {
+                        light.setAttribute('light', {intensity: 0.7, color: '#ffd700'});
+                    });
+                    scene.setAttribute('background', 'color', '#fffacd');
+                    console.log('🟡 Luz AMARELA ativada');
+                    break;
+                    
+                case 'blue':
+                    ambientLight.setAttribute('light', {intensity: 0.3, color: '#e6f3ff'});
+                    mainLight.setAttribute('light', {intensity: 0.8, color: '#87ceeb'});
+                    ceilingLights.forEach(light => {
+                        light.setAttribute('light', {intensity: 0.7, color: '#87ceeb'});
+                    });
+                    scene.setAttribute('background', 'color', '#e6f3ff');
+                    console.log('🔵 Luz AZUL ativada');
+                    break;
+                    
+                case 'presentation':
+                    ambientLight.setAttribute('light', {intensity: 0.2, color: '#ffffff'});
+                    mainLight.setAttribute('light', {intensity: 0.4, color: '#ffffff'});
+                    ceilingLights.forEach(light => {
+                        light.setAttribute('light', {intensity: 0.3, color: '#f8f8ff'});
+                    });
+                    scene.setAttribute('background', 'color', '#2c3e50');
+                    console.log('🎬 Modo APRESENTAÇÃO ativado');
+                    break;
+                    
+                case 'off':
+                    ambientLight.setAttribute('light', {intensity: 0.05, color: '#ffffff'});
+                    mainLight.setAttribute('light', {intensity: 0, color: '#ffffff'});
+                    ceilingLights.forEach(light => {
+                        light.setAttribute('light', {intensity: 0, color: '#ffffff'});
+                    });
+                    scene.setAttribute('background', 'color', '#1a1a2e');
+                    lightsOn = false;
+                    console.log('⚫ Luzes DESLIGADAS');
+                    break;
+            }
+        }
+
+        function adjustCameraHeight(delta) {
+            const camera = document.getElementById('cameraRig');
+            const currentPos = camera.getAttribute('position');
+            const newY = Math.max(0.5, Math.min(8, currentPos.y + delta));
+            camera.setAttribute('position', `${currentPos.x} ${newY} ${currentPos.z}`);
+            console.log(`📐 Altura da câmera: ${newY.toFixed(1)}m`);
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                console.log('🖥️ Modo tela cheia ATIVADO');
+            } else {
+                document.exitFullscreen();
+                console.log('🖥️ Modo tela cheia DESATIVADO');
+            }
+        }
+    </script>
+</body>
+</html>
